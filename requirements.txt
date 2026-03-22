@@ -1,0 +1,4 @@
+# pack.py 仅使用 Python 标准库，无运行时依赖
+
+# 构建工具（将 pack.py 打包为 exe）
+pyinstaller

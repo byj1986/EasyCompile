@@ -1,0 +1,18 @@
+使用python编写C#的编译打包工具
+打包, pack.py
+在编写完成脚本后，我会使用pyinstaller将py打包成exe，并将其所在目录添加至系统环境变量Path以便使用
+使用的方式为在visual studio的powershell里输入pack 及所需参数
+pack的参数为-c表示只编译，不打包
+pack会获得当前项目的路径, solution_dir
+为solution_dir\创建build目录，如果已经存在build目录，则清理build目录下的文件。
+编译使用dotnet build生成可执行程序，使用Release模式编译，平台为x64，该参数也在csproj中指定。
+	  <PlatformTarget>x64</PlatformTarget>
+输出到solution_dir\build\$version目录。
+输出完成后，删除*.pdb
+至此编译任务完成
+根据运行参数，如果-c则不执行打包
+
+打包：
+查找solution_dir\build\$version下的.exe文件，以最新的exe为准，作为应用程序名
+打包根据刚编译生成的solution_dir\build\$version文件打包成{应用程序名}.{version}.zip
+
