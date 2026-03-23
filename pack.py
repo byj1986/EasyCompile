@@ -8,14 +8,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 
-def find_sln_file(solution_dir):
-    slns = glob.glob(os.path.join(solution_dir, "*.sln"))
-    if not slns:
-        print("[错误] 未找到 .sln 文件")
-        sys.exit(1)
-    return slns[0]
-
-
 def find_exe_csproj(solution_dir):
     """查找含 <OutputType>Exe</OutputType> 的 .csproj 文件，有多个时取修改时间最新的"""
     candidates = []
@@ -31,8 +23,14 @@ def find_exe_csproj(solution_dir):
                     root_el = tree.getroot()
                     # 兼容有命名空间和无命名空间两种格式
                     for output_type in root_el.iter():
-                        if output_type.tag in ("OutputType", "{http://schemas.microsoft.com/developer/msbuild/2003}OutputType"):
-                            if output_type.text and output_type.text.strip().lower() in ("winexe"):
+                        if output_type.tag in (
+                            "OutputType",
+                            "{http://schemas.microsoft.com/developer/msbuild/2003}OutputType",
+                        ):
+                            if (
+                                output_type.text
+                                and output_type.text.strip().lower() in ("winexe")
+                            ):
                                 candidates.append(path)
                                 break
                 except ET.ParseError:
@@ -74,9 +72,13 @@ def prepare_build_dir(build_dir):
 
 def run_build(csproj_file, output_dir):
     cmd = [
-        "dotnet", "build", csproj_file,
-        "-c", "Release",
-        "-o", output_dir,
+        "dotnet",
+        "build",
+        csproj_file,
+        "-c",
+        "Release",
+        "-o",
+        output_dir,
     ]
     print(f"[编译] {' '.join(cmd)}")
     result = subprocess.run(cmd)
@@ -108,21 +110,23 @@ def create_zip(output_dir, app_name, version_tag, build_dir):
             if os.path.isfile(file_path):
                 arcname = os.path.relpath(file_path, output_dir)
                 zf.write(file_path, arcname)
-    print(f"[完成] {zip_path}")
+    print(f"[打包完成]")
 
 
 def main():
     parser = argparse.ArgumentParser(description="C# 项目编译打包工具")
     parser.add_argument("-c", action="store_true", help="仅编译，不打包")
-    parser.add_argument("-d", "--solution-dir", dest="solution_dir",
-                        default=None, help="解决方案目录路径，默认为当前工作目录")
+    parser.add_argument(
+        "-d",
+        "--solution-dir",
+        dest="solution_dir",
+        default=None,
+        help="解决方案目录路径，默认为当前工作目录",
+    )
     args = parser.parse_args()
 
     solution_dir = args.solution_dir or os.getcwd()
     print(f"[项目目录] {solution_dir}")
-
-    sln_file = find_sln_file(solution_dir)
-    print(f"[解决方案] {sln_file}")
 
     csproj_file = find_exe_csproj(solution_dir)
     print(f"[项目文件] {csproj_file}")
@@ -141,12 +145,11 @@ def main():
     print("[编译完成]")
 
     if args.c:
-        print("[跳过打包]（-c 模式）")
+        print("[跳过打包]")
         return
 
     exe_path = find_latest_exe(output_dir)
     app_name = os.path.splitext(os.path.basename(exe_path))[0]
-    print(f"[应用名] {app_name}")
 
     create_zip(output_dir, app_name, version_tag, build_dir)
 
