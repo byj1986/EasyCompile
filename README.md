@@ -9,7 +9,7 @@
 ## C# 项目需满足的条件
 
 1. 存在标记为 **WinExe** 的 `.csproj`（多个时取**修改时间最新**的一个）。
-2. 该 `.csproj` 中必须包含 **`<Version>`**；若还有 **`<FileVersion>`**，zip 命名会使用 `版本-FileVersion` 形式。
+2. 若 `.csproj` 中包含 **`<Version>`**，输出目录及 zip 以版本号命名；若还有 **`<FileVersion>`**，则使用 `版本-FileVersion` 形式。缺少 `<Version>` 时，自动使用 **csproj 文件名**（不含扩展名）作为目录及 zip 名称。
 
 > [!WARNING]
 > 每次运行会先**清空整个 `build` 文件夹**再重新创建，请勿在该目录存放需要保留的文件。
@@ -44,8 +44,8 @@ pack.exe -c     # 仅编译，不打包
 
 ### 3. 运行结果
 
-- 编译输出：`build/<Version>[-<FileVersion>]/`
-- 打包文件（未使用 `-c` 时）：`build/<应用名>.<Version>[-<FileVersion>].zip`
+- 编译输出：`build/<Version>[-<FileVersion>]/`（缺少版本号时为 `build/<项目名>/`）
+- 打包文件（未使用 `-c` 时）：`build/<应用名>.<Version>[-<FileVersion>].zip`（缺少版本号时为 `build/<应用名>.<项目名>.zip`）
 
 ---
 

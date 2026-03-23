@@ -56,9 +56,6 @@ def read_versions(csproj_path):
                 file_version = el.text.strip()
     except ET.ParseError:
         pass
-    if not version:
-        print("[错误] 无法从 .csproj 读取 <Version> 标签")
-        sys.exit(1)
     return version, file_version
 
 
@@ -132,7 +129,11 @@ def main():
     print(f"[项目文件] {csproj_file}")
 
     version, file_version = read_versions(csproj_file)
-    version_tag = f"{version}-{file_version}" if file_version else version
+    if version:
+        version_tag = f"{version}-{file_version}" if file_version else version
+    else:
+        version_tag = os.path.splitext(os.path.basename(csproj_file))[0]
+        print(f"[提示] 未找到 <Version>，使用项目名作为文件夹名")
     print(f"[版本] {version_tag}")
 
     build_dir = os.path.join(solution_dir, "build")
