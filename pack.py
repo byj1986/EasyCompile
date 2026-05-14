@@ -8,6 +8,14 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 
+def find_7z():
+    for name in ("7z", "7z.exe"):
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
 def find_exe_csproj(solution_dir):
     """查找含 <OutputType>Exe</OutputType> 的 .csproj 文件，有多个时取修改时间最新的"""
     candidates = []
@@ -100,16 +108,33 @@ def find_latest_exe(output_dir):
     return max(exes, key=os.path.getmtime)
 
 
-def create_zip(output_dir, app_name, version_tag, build_dir):
-    zip_name = f"{app_name}-V{version_tag}.zip"
-    zip_path = os.path.join(build_dir, zip_name)
-    print(f"[打包] {zip_path}")
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for file_path in glob.glob(os.path.join(output_dir, "**"), recursive=True):
-            if os.path.isfile(file_path):
-                arcname = os.path.relpath(file_path, output_dir)
-                zf.write(file_path, arcname)
-    print(f"[打包完成]")
+def create_archive(output_dir, app_name, version_tag, build_dir, archive_format):
+    """archive_format: 'zip' 或 '7z'。仅当为 7z 且 PATH 中存在 7z 时使用 7z，否则一律 zip。"""
+    seven_z = find_7z() if archive_format == "7z" else None
+    if archive_format == "7z" and seven_z:
+        archive_name = f"{app_name}-V{version_tag}.7z"
+        archive_path = os.path.abspath(os.path.join(build_dir, archive_name))
+        print(f"[打包] {archive_path} (7z)")
+        # 在 output_dir 下执行，使包内路径与 zip 一致（相对输出目录的根）
+        cmd = [seven_z, "a", "-t7z", "-y", "-r", archive_path, "*"]
+        result = subprocess.run(cmd, cwd=output_dir)
+        if result.returncode != 0:
+            print("[错误] 7z 打包失败")
+            sys.exit(result.returncode)
+    else:
+        if archive_format == "7z" and not seven_z:
+            print(
+                "[提示] 已指定 -f 7z，但未在 PATH 中找到 7z / 7z.exe，改用 zip 打包。"
+            )
+        zip_name = f"{app_name}-V{version_tag}.zip"
+        zip_path = os.path.join(build_dir, zip_name)
+        print(f"[打包] {zip_path} (zip)")
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in glob.glob(os.path.join(output_dir, "**"), recursive=True):
+                if os.path.isfile(file_path):
+                    arcname = os.path.relpath(file_path, output_dir)
+                    zf.write(file_path, arcname)
+    print("[打包完成]")
     if sys.platform == "win32" and hasattr(os, "startfile"):
         folder = os.path.abspath(build_dir)
         try:
@@ -119,9 +144,25 @@ def create_zip(output_dir, app_name, version_tag, build_dir):
             print(f"[提示] 无法打开资源管理器: {e}")
 
 
+def _archive_format_type(value):
+    v = value.lower()
+    if v not in ("zip", "7z"):
+        raise argparse.ArgumentTypeError("须为 zip 或 7z")
+    return v
+
+
 def main():
     parser = argparse.ArgumentParser(description="C# 项目编译打包工具")
     parser.add_argument("-c", action="store_true", help="仅编译，不打包")
+    parser.add_argument(
+        "-f",
+        "--format",
+        dest="archive_format",
+        type=_archive_format_type,
+        default="zip",
+        metavar="FMT",
+        help="打包格式：zip（默认）；7z 表示若 PATH 中有 7z 则用 7z，否则用 zip",
+    )
     parser.add_argument(
         "-d",
         "--solution-dir",
@@ -161,7 +202,7 @@ def main():
     exe_path = find_latest_exe(output_dir)
     app_name = os.path.splitext(os.path.basename(exe_path))[0]
 
-    create_zip(output_dir, app_name, version_tag, build_dir)
+    create_archive(output_dir, app_name, version_tag, build_dir, args.archive_format)
 
 
 if __name__ == "__main__":
