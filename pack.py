@@ -42,7 +42,8 @@ def find_exe_csproj(solution_dir):
 
 
 def read_versions(csproj_path):
-    """读取 .csproj 中的 <Version> 和 <FileVersion>，返回 (version, file_version)"""
+    """读取 .csproj 中的 <Version> 和 <FileVersion>，返回 (version, file_version)。
+    FileVersion 会先 strip，再去掉半角空格（如 'Patch 1' -> 'Patch1'），便于文件名等场景。"""
     version = None
     file_version = None
     try:
@@ -53,7 +54,7 @@ def read_versions(csproj_path):
             if tag == "Version" and el.text and el.text.strip():
                 version = el.text.strip()
             elif tag == "FileVersion" and el.text and el.text.strip():
-                file_version = el.text.strip()
+                file_version = el.text.strip().replace(" ", "")
     except ET.ParseError:
         pass
     return version, file_version
@@ -72,8 +73,9 @@ def run_build(csproj_file, output_dir):
         "dotnet",
         "build",
         csproj_file,
+        "-p:WarningLevel=0",
         "-c",
-        "Release",
+        "Debug",
         "-o",
         output_dir,
     ]
@@ -99,7 +101,7 @@ def find_latest_exe(output_dir):
 
 
 def create_zip(output_dir, app_name, version_tag, build_dir):
-    zip_name = f"{app_name}.{version_tag}.zip"
+    zip_name = f"{app_name}-V{version_tag}.zip"
     zip_path = os.path.join(build_dir, zip_name)
     print(f"[打包] {zip_path}")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -108,6 +110,13 @@ def create_zip(output_dir, app_name, version_tag, build_dir):
                 arcname = os.path.relpath(file_path, output_dir)
                 zf.write(file_path, arcname)
     print(f"[打包完成]")
+    if sys.platform == "win32" and hasattr(os, "startfile"):
+        folder = os.path.abspath(build_dir)
+        try:
+            os.startfile(folder)
+            print(f"[打开] 资源管理器: {folder}")
+        except OSError as e:
+            print(f"[提示] 无法打开资源管理器: {e}")
 
 
 def main():

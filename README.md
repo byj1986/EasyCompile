@@ -1,6 +1,6 @@
-# EasyPack — C# 项目编译打包工具
+# EasyCompile — C# 项目编译打包工具（pack）
 
-自动查找解决方案与可执行项目，使用 `dotnet build` 以 Release 模式编译，输出到 `build/<版本>/`，删除 `.pdb` 后可选地将输出目录打成 zip。
+自动在指定目录下查找含 **WinExe** 输出的 `.csproj`（多个时取**修改时间最新**的一个），使用 `dotnet build` 以 **Debug** 模式编译（`-p:WarningLevel=0`），输出到 `build/<版本标签>/`，删除 `.pdb` 后可选地将输出目录打成 zip。
 
 ## 环境要求
 
@@ -44,8 +44,9 @@ pack.exe -c     # 仅编译，不打包
 
 ### 3. 运行结果
 
-- 编译输出：`build/<Version>[-<FileVersion>]/`（缺少版本号时为 `build/<项目名>/`）
-- 打包文件（未使用 `-c` 时）：`build/<应用名>.<Version>[-<FileVersion>].zip`（缺少版本号时为 `build/<应用名>.<项目名>.zip`）
+- 编译输出：`build/<版本标签>/`，其中版本标签为 `<Version>`、`<Version>-<FileVersion>`（`FileVersion` 会去掉半角空格以便作路径名），或缺少 `<Version>` 时为 **csproj 文件名**（不含扩展名）。
+- 打包文件（未使用 `-c` 时）：`build/<应用名>-V<版本标签>.zip`（与输出目录使用同一版本标签）。
+- **Windows**：打包成功后会尝试用资源管理器打开 `build` 所在目录，便于直接取用 zip。
 
 ---
 
