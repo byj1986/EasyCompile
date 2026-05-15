@@ -68,6 +68,46 @@ def read_versions(csproj_path):
     return version, file_version
 
 
+def read_app_name(csproj_path):
+    """从 .csproj 读取用于归档名的程序集基名。
+
+    若同时存在 <DistributionName> 与 <AssemblyName>：比较二者在文档中**最后一次**
+    出现的位置；若 DistributionName 在 AssemblyName 之后，则用 AssemblyName；
+    否则用 DistributionName。仅存在其一则用该项。值若以 .exe 结尾则去掉后缀。
+    """
+    dist_val = asm_val = None
+    dist_idx = asm_idx = -1
+    try:
+        tree = ET.parse(csproj_path)
+        root_el = tree.getroot()
+        for i, el in enumerate(root_el.iter()):
+            tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
+            if not el.text or not el.text.strip():
+                continue
+            text = el.text.strip()
+            if tag == "DistributionName":
+                dist_val, dist_idx = text, i
+            elif tag == "AssemblyName":
+                asm_val, asm_idx = text, i
+    except ET.ParseError:
+        pass
+
+    if dist_val is None and asm_val is None:
+        return None
+    if dist_val is None:
+        raw = asm_val
+    elif asm_val is None:
+        raw = dist_val
+    elif dist_idx > asm_idx:
+        raw = asm_val
+    else:
+        raw = dist_val
+
+    if raw.lower().endswith(".exe"):
+        return os.path.splitext(raw)[0]
+    return raw
+
+
 def prepare_build_dir(build_dir):
     if os.path.exists(build_dir):
         print(f"[清理] {build_dir}")
@@ -100,14 +140,6 @@ def delete_pdb(output_dir):
         os.remove(pdb)
 
 
-def find_latest_exe(output_dir):
-    exes = glob.glob(os.path.join(output_dir, "*.exe"))
-    if not exes:
-        print("[错误] 未找到 .exe 文件，无法打包")
-        sys.exit(1)
-    return max(exes, key=os.path.getmtime)
-
-
 def create_archive(output_dir, app_name, version_tag, build_dir, archive_format):
     """archive_format: 'zip' 或 '7z'。仅当为 7z 且 PATH 中存在 7z 时使用 7z，否则一律 zip。"""
     seven_z = find_7z() if archive_format == "7z" else None
@@ -124,7 +156,7 @@ def create_archive(output_dir, app_name, version_tag, build_dir, archive_format)
     else:
         if archive_format == "7z" and not seven_z:
             print(
-                "[提示] 已指定 -f 7z，但未在 PATH 中找到 7z / 7z.exe，改用 zip 打包。"
+                "[提示] 打包格式为 7z，但未在 PATH 中找到 7z / 7z.exe，改用 zip 打包。"
             )
         zip_name = f"{app_name}-V{version_tag}.zip"
         zip_path = os.path.join(build_dir, zip_name)
@@ -159,9 +191,9 @@ def main():
         "--format",
         dest="archive_format",
         type=_archive_format_type,
-        default="zip",
+        default="7z",
         metavar="FMT",
-        help="打包格式：zip（默认）；7z 表示若 PATH 中有 7z 则用 7z，否则用 zip",
+        help="打包格式：7z（默认，若 PATH 中有 7z 则用 7z，否则用 zip）；zip",
     )
     parser.add_argument(
         "-d",
@@ -179,6 +211,7 @@ def main():
     print(f"[项目文件] {csproj_file}")
 
     version, file_version = read_versions(csproj_file)
+    app_name = read_app_name(csproj_file)
     if version:
         version_tag = f"{version}-{file_version}" if file_version else version
     else:
@@ -198,9 +231,6 @@ def main():
     if args.c:
         print("[跳过打包]")
         return
-
-    exe_path = find_latest_exe(output_dir)
-    app_name = os.path.splitext(os.path.basename(exe_path))[0]
 
     create_archive(output_dir, app_name, version_tag, build_dir, args.archive_format)
 
