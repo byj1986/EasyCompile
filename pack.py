@@ -191,9 +191,9 @@ def main():
         "--format",
         dest="archive_format",
         type=_archive_format_type,
-        default="7z",
+        default="zip",
         metavar="FMT",
-        help="打包格式：7z（默认，若 PATH 中有 7z 则用 7z，否则用 zip）；zip",
+        help="打包格式：zip（默认）；7z（若 PATH 中有 7z 则用 7z，否则回退为 zip）",
     )
     parser.add_argument(
         "-d",
