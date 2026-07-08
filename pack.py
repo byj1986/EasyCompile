@@ -122,6 +122,7 @@ def run_build(csproj_file, output_dir):
         "build",
         csproj_file,
         "-p:WarningLevel=0",
+        "-p:CopyPackResources=true",
         "-c",
         "Debug",
         "-o",
